@@ -1,19 +1,25 @@
 package dev.benedek.sael.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.LibraryMusic
-import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.BottomSheetScaffoldState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.SheetValue
@@ -30,26 +36,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
+import dev.benedek.sael.R
 import dev.benedek.sael.ui.theme.SaelTheme
 import kotlin.math.pow
 
-val miniPlayerHeight = 86.dp     // TODO: set perfect height
-
+val miniPlayerContentHeight = 70.dp
+val miniPlayerHeight = miniPlayerContentHeight // TODO: set perfect height
+val sheetCornerRadius = 12.dp // 24.dp is the default in materialtheme
 
 
 // I still don't understand why Compose doesn't have accessible properties like expanded ratio.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun sheetCornerRadius(scaffoldState: BottomSheetScaffoldState, navbarHeight: Dp): Dp {
+fun getCurrentSheetCornerRadius(scaffoldState: BottomSheetScaffoldState, navbarHeight: Dp): Dp {
     val density = LocalDensity.current
     val windowInfo = LocalWindowInfo.current
     val navbarHeightPx = with(density) { navbarHeight.toPx() }
@@ -68,7 +78,7 @@ fun sheetCornerRadius(scaffoldState: BottomSheetScaffoldState, navbarHeight: Dp)
 
         }
     }
-    return lerp(0.dp, 24.dp, progress.pow(1/4f))
+    return lerp(0.dp, sheetCornerRadius, progress.pow(1/4f))
 }
 
 
@@ -82,7 +92,7 @@ fun Main() {
     )
     val density = LocalDensity.current
     var navBarHeightDp by remember { mutableStateOf(0.dp) }
-    val sheetCornerRadius = sheetCornerRadius(scaffoldState, navBarHeightDp)
+    val sheetCornerRadius = getCurrentSheetCornerRadius(scaffoldState, navBarHeightDp)
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -97,7 +107,10 @@ fun Main() {
             sheetContent = {
                 Player()
             },
-            sheetShape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius)
+            sheetShape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius),
+            sheetDragHandle = {
+                // Already drawn inside Content(), don't draw here
+            }
         ) { paddingValues ->
             Content(paddingValues)
         }
@@ -152,10 +165,54 @@ fun Player() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MiniPlayer() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        Text("Mao")
+    Box() {
+        val width = 32.dp
+        val height = 4.dp
+
+
+        Row(
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Image(
+                painterResource(R.drawable.ic_launcher_background),
+                contentDescription = "icon",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(miniPlayerContentHeight)
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("Title")
+                Text("Artist")
+            }
+            Row(
+                modifier = Modifier.padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton({/*TODO()*/}) {
+                    Icon(Icons.Outlined.PlayArrow, null)
+                }
+                IconButton({/*TODO()*/}) {
+                    Icon(Icons.Outlined.Pause, null)
+                }
+            }
+        }
+        Box(
+            Modifier.matchParentSize(),
+            Alignment.TopCenter
+        ) {
+            Surface(
+                modifier = Modifier.padding(vertical = 8.dp) // private DragHandleVerticalPadding = 22.dp
+                ,
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            ) {
+                Box(Modifier.size(width = width, height = height))
+            }
+        }
     }
 }
 
