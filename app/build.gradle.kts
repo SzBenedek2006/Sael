@@ -44,6 +44,7 @@ dependencies {
     val composeBom = platform(libs.compose.bom)
     implementation(composeBom)
     implementation(libs.material3)
+    implementation(libs.material.icons.extended)
 
     // Android Studio Preview support
     implementation(libs.ui.tooling.preview)

@@ -10,6 +10,12 @@ kotlin = "2.3.21"
 composeBom = "2026.04.01"
 activityCompose = "1.13.0"
 composeAdaptive = "1.2.0"
+materialIconsCore = "1.7.8"
+materialIconsCoreAndroid = "1.7.8"
+materialIconsCoreDesktop = "1.7.8"
+materialIconsExtended = "1.7.8"
+materialIconsExtendedAndroid = "1.7.8"
+materialIconsExtendedDesktop = "1.7.8"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -24,6 +30,13 @@ ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview
 ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 material3-adaptive = { group = "androidx.compose.material3.adaptive", name = "adaptive", version.ref = "composeAdaptive" }
+material-icons-core = { group = "androidx.compose.material", name = "material-icons-core", version.ref = "materialIconsCore" }
+material-icons-core-android = { group = "androidx.compose.material", name = "material-icons-core-android", version.ref = "materialIconsCoreAndroid" }
+material-icons-core-desktop = { group = "androidx.compose.material", name = "material-icons-core-desktop", version.ref = "materialIconsCoreDesktop" }
+material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
+material-icons-extended-android = { group = "androidx.compose.material", name = "material-icons-extended-android", version.ref = "materialIconsExtendedAndroid" }
+material-icons-extended-desktop = { group = "androidx.compose.material", name = "material-icons-extended-desktop", version.ref = "materialIconsExtendedDesktop" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
