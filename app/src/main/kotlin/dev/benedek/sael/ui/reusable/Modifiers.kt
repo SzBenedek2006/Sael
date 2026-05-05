@@ -14,56 +14,79 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.util.lerp
-import dev.benedek.sael.ui.miniPlayerContentHeight
 
-fun Modifier.animatePlayerElement(
+enum class ElementAnchor { Left, Center, Right }
+
+fun Modifier.animateElement(
     progress: Float,
-    miniSize: Float?,
-    expandedSize: Float?,
-    x: Float,
-    y: Float
+    originalWidth: Float?,
+    expandedWidth: Float?,
+    scalingFactor: Float?,
+    scaleFromCenter: Boolean = false,
+    x: Float?,
+    y: Float?,
+    anchor: ElementAnchor = ElementAnchor.Center
 ): Modifier = this.composed {
     var absoluteOffset by remember { mutableStateOf(Offset.Zero) }
     var elementSize by remember { mutableStateOf(IntSize.Zero) }
 
     this.onGloballyPositioned { coordinates ->
-        if (progress == 1f)
-        absoluteOffset = coordinates.positionInParent()
-        Log.d(this.toString(), coordinates.positionInRoot().toString())
+        if (progress == 1f) {
+            absoluteOffset = coordinates.positionInParent()
+            Log.d(this.toString(), coordinates.positionInRoot().toString())
+        }
     }.onSizeChanged{ size ->
-        elementSize = size
+        if (progress == 1f) {
+            elementSize = size
+        }
     }.graphicsLayer {
+
         // if expanded size is null, then scale factor is 1
-        if (expandedSize != null && miniSize != null) {
-            val scale = lerp(expandedSize / miniSize, 1f, progress) // scale -> how many times the original
+        if (expandedWidth != null) {
+            val scale = lerp(expandedWidth / (originalWidth ?: elementSize.width.toFloat()), 1f, progress) // scale -> how many times the original
+            scaleX = scale
+            scaleY = scale
+        } else if (scalingFactor != null) {
+            val scale = lerp(scalingFactor, 1f, progress) // scale -> how many times the original
             scaleX = scale
             scaleY = scale
         }
 
         // The image's 0;0 coordinates are used, instead of the middle
-        transformOrigin = TransformOrigin(0f, 0f)
+        if (!scaleFromCenter) transformOrigin = TransformOrigin(0f, 0f)
+
+        if (x == null && y == null) return@graphicsLayer
 
         var startX = 0f
         var startY = 0f
 
+        val _x = x ?: 0f
+        val _y = y ?: 0f
+
+        val pivotFactor = when (anchor) {
+            ElementAnchor.Left -> 0f
+            ElementAnchor.Center -> 0.5f
+            ElementAnchor.Right -> 1f
+        }
+
+
         // Actually the start will be the expanded size
-        if (expandedSize != null) {
-            startX = x - expandedSize / 2f
-            startY = y - expandedSize / 2f
+        if (expandedWidth != null) {
+            startX = _x - expandedWidth * pivotFactor
+            startY = _y - expandedWidth / 2f
         } else {
-            startX = x - elementSize.width / 2f - absoluteOffset.x
-            startY = y - elementSize.height / 2f - absoluteOffset.y
+            startX = _x - elementSize.width * pivotFactor - absoluteOffset.x
+            startY = _y - elementSize.height / 2f - absoluteOffset.y
         }
 
 
         Log.d(this.toString(), "$startX, $startY")
 
 
-        translationX = lerp(startX, 0f, progress)
-        translationY = lerp(startY, 0f, progress)
+        x?.let { translationX = lerp(startX, 0f, progress) }
+        y?.let { translationY = lerp(startY, 0f, progress) }
+
     }
 }
