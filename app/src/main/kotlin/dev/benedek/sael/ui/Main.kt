@@ -3,14 +3,16 @@ package dev.benedek.sael.ui
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.VectorDrawable
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -18,12 +20,11 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -41,10 +42,12 @@ import androidx.compose.material3.BottomSheetScaffoldState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -69,8 +72,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -89,6 +94,8 @@ import androidx.compose.ui.util.lerp
 import androidx.core.content.ContextCompat
 import androidx.vectordrawable.graphics.drawable.VectorDrawableCompat
 import dev.benedek.sael.R
+import dev.benedek.sael.ui.reusable.FlatEdgeLinearProgressIndicator
+import dev.benedek.sael.ui.reusable.disableTouch
 import dev.benedek.sael.ui.theme.SaelTheme
 import kotlin.math.pow
 
@@ -314,35 +321,46 @@ fun Player(openFraction: Float, modifier: Modifier = Modifier) {
 
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MiniPlayer(openFraction: Float, isPortrait: Boolean) {
-    Row(
-        Modifier.fillMaxWidth().alpha(openFraction.pow(16)),
-        Arrangement.SpaceBetween,
-        Alignment.CenterVertically
-    ) {
-        CoverImage(R.drawable.test, Modifier.size(MiniPlayerDimensions.height))
-        TitleArtist(Modifier.weight(1f).padding(start = 12.dp))
-        IconButton({}) {
-            Icon(Icons.Outlined.FavoriteBorder, null)
-        }
-        if (isPortrait) {
-            IconButton({}) {
-                Icon(Icons.Outlined.PlayArrow, null)
+    val context = LocalContext.current
+    Column(Modifier.fillMaxWidth().alpha(openFraction.pow(50))) {
+        Row(
+            Modifier.fillMaxWidth(),
+            Arrangement.SpaceBetween,
+            Alignment.CenterVertically
+        ) {
+            CoverImage(R.drawable.test, Modifier.size(MiniPlayerDimensions.height - ProgressIndicatorDefaults.LinearTrackStopIndicatorSize))
+            TitleArtist(Modifier.weight(1f).padding(start = 12.dp))
+            IconButton(
+                { Toast.makeText(context, "click", Toast.LENGTH_SHORT).show() },
+                enabled = openFraction > 0.1f
+            ) {
+                Icon(Icons.Outlined.FavoriteBorder, null)
             }
-        } else {
-            Row(horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
-                IconButton({}) {
-                    Icon(Icons.Outlined.SkipPrevious, null)
+            if (isPortrait) {
+                IconButton({}, Modifier.padding(6.dp).size(32.dp), enabled = openFraction > 0.1f) {
+                    Icon(Icons.Outlined.PlayArrow, null, Modifier.fillMaxSize())
                 }
-                IconButton({}) {
-                    Icon(Icons.Outlined.PlayArrow, null)
-                }
-                IconButton({}) {
-                    Icon(Icons.Outlined.SkipPrevious, null)
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton({}, enabled = openFraction > 0.1f) {
+                        Icon(Icons.Outlined.SkipPrevious, null)
+                    }
+                    IconButton({}, enabled = openFraction > 0.1f) {
+                        Icon(Icons.Outlined.PlayArrow, null)
+                    }
+                    IconButton({}, enabled = openFraction > 0.1f) {
+                        Icon(Icons.Outlined.SkipPrevious, null)
+                    }
                 }
             }
         }
+        FlatEdgeLinearProgressIndicator({0.5f}, Modifier.fillMaxWidth()) // TODO: Custom implementation with square edges.
     }
 }
 
