@@ -95,7 +95,6 @@ import androidx.core.content.ContextCompat
 import androidx.vectordrawable.graphics.drawable.VectorDrawableCompat
 import dev.benedek.sael.R
 import dev.benedek.sael.ui.reusable.FlatEdgeLinearProgressIndicator
-import dev.benedek.sael.ui.reusable.disableTouch
 import dev.benedek.sael.ui.theme.SaelTheme
 import kotlin.math.pow
 
