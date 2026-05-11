@@ -45,6 +45,7 @@ dependencies {
     implementation(composeBom)
     implementation(libs.material3)
     implementation(libs.material.icons.extended)
+    implementation(libs.viewmodel.compose)
 
     // Android Studio Preview support
     implementation(libs.ui.tooling.preview)
@@ -55,6 +56,11 @@ dependencies {
 
     // Integration with activities
     implementation(libs.activity.compose)
+
+    // Media3
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui.compose)
+    implementation(libs.media3.session)
     
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
