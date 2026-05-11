@@ -1,4 +1,4 @@
-package dev.benedek.sael.model
+package dev.benedek.sael.data.model
 import android.graphics.Bitmap
 import android.net.Uri
 
