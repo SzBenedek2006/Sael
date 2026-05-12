@@ -61,6 +61,12 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui.compose)
     implementation(libs.media3.session)
+
+    // Coil
+    implementation(libs.coil.compose)
+
+    // Advanced Bottom Sheet for Compose
+    implementation(libs.advanced.bottomsheet.material3)
     
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)

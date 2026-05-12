@@ -18,6 +18,8 @@ materialIconsExtendedAndroid = "1.7.8"
 materialIconsExtendedDesktop = "1.7.8"
 media3 = "1.10.0"
 viewModel = "2.10.0"
+coil = "2.7.0"
+advancedBottomsheet = "0.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -44,7 +46,8 @@ media3-common-ktx = { group = "androidx.media3", name = "media3-common-ktx", ver
 media3-ui-compose = { group = "androidx.media3", name = "media3-ui-compose", version.ref = "media3" }
 media3-decoder = { group = "androidx.media3", name = "media3-decoder", version.ref = "media3" }
 viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "viewModel" }
-
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+advanced-bottomsheet-material3 = { group = "io.morfly.compose", name = "advanced-bottomsheet-material3", version.ref = "advancedBottomsheet" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
