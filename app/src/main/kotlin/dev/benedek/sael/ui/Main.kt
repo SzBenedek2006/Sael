@@ -1,13 +1,10 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package dev.benedek.sael.ui
 
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.VectorDrawable
-import android.util.Log
 import android.widget.Toast
-import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,11 +17,12 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -32,17 +30,15 @@ import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Lyrics
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.SkipPrevious
 import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.BottomSheetScaffoldState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -51,16 +47,14 @@ import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.SliderState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -70,32 +64,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.ui.res.imageResource
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import androidx.core.content.ContextCompat
-import androidx.vectordrawable.graphics.drawable.VectorDrawableCompat
-import dev.benedek.sael.R
+import androidx.core.net.toUri
+import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import dev.benedek.sael.data.model.Track
 import dev.benedek.sael.ui.reusable.FlatEdgeLinearProgressIndicator
 import dev.benedek.sael.ui.theme.SaelTheme
+import dev.benedek.sael.utils.formatDuration
+import dev.benedek.sael.viewmodels.MainViewModel
+import io.morfly.compose.bottomsheet.material3.BottomSheetScaffold
+import io.morfly.compose.bottomsheet.material3.BottomSheetScaffoldState
+import io.morfly.compose.bottomsheet.material3.rememberBottomSheetScaffoldState
+import io.morfly.compose.bottomsheet.material3.rememberBottomSheetState
 import kotlin.math.pow
 
 @Stable
@@ -105,18 +98,15 @@ object MiniPlayerDimensions {
 }
 val LocalIsLandscape = compositionLocalOf { false }
 
-var navBarHeightDp by mutableStateOf(0.dp)
-
-var sheetY by mutableFloatStateOf(0f)
-
-
-
 
 
 // I still don't understand why Compose doesn't have accessible properties like expanded ratio.
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun bottomSheetExpandedRatio(scaffoldState: BottomSheetScaffoldState, navbarHeight: Dp): Float {
+fun bottomSheetExpandedRatio(
+    scaffoldState: BottomSheetScaffoldState<SheetValue>,
+    navbarHeight: Dp
+): () -> Float {
     val density = LocalDensity.current
     val windowInfo = LocalWindowInfo.current
     val navbarHeightPx = with(density) { navbarHeight.toPx() }
@@ -124,10 +114,10 @@ fun bottomSheetExpandedRatio(scaffoldState: BottomSheetScaffoldState, navbarHeig
     val miniStateHeight = windowInfo.containerSize.height - navbarHeightPx - playerHeightPx
 
 
-    val progress by remember(scaffoldState, miniStateHeight) {
-        derivedStateOf {
+    return remember(scaffoldState, miniStateHeight) {
+        {
             try {
-                val currentOffset = scaffoldState.bottomSheetState.requireOffset()
+                val currentOffset = scaffoldState.sheetState.requireOffset()
                 (currentOffset / miniStateHeight).coerceIn(0f, 1f)
             } catch (e: IllegalStateException) {
                 1f
@@ -135,41 +125,92 @@ fun bottomSheetExpandedRatio(scaffoldState: BottomSheetScaffoldState, navbarHeig
 
         }
     }
-    return progress
 }
 
 @Composable
-fun getCurrentSheetCornerRadius(progress: Float): Dp {
-    return lerp(0.dp, MiniPlayerDimensions.cornerRadius, progress.pow(1/4f))
+fun getCurrentSheetCornerRadius(progress: () -> Float): Dp {
+    return lerp(0.dp, MiniPlayerDimensions.cornerRadius, progress().pow(1/4f))
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun Main() {
-    sheetY = with(LocalDensity.current) { navBarHeightDp.toPx() + MiniPlayerDimensions.height.toPx() }
+    val viewModel: MainViewModel = viewModel()
+    val bottomWindowInset = with(LocalDensity.current) { WindowInsetsCompat.toWindowInsetsCompat(LocalView.current.rootWindowInsets!!).getInsets(WindowInsetsCompat.Type.navigationBars()).bottom.toDp() }
+
+    var isDismissable by remember { mutableStateOf(true) }
+    val density = LocalDensity.current
+
+
+    val bottomSheetState = rememberBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        defineValues = {
+            // Bottom sheet height is 100 dp.
+            if (isDismissable) SheetValue.Hidden at height(0)
+            // Bottom sheet offset is 60%, meaning it takes 40% of the screen.
+            SheetValue.PartiallyExpanded at height(navigationBarHeight + bottomWindowInset + MiniPlayerDimensions.height)
+            // Bottom sheet height is equal to its content height.
+            SheetValue.Expanded at height(100)
+        },
+        // The default { 0f } values are trash, IDK why they did that.
+        positionalThreshold = {distance -> distance * 0.5f},
+        velocityThreshold = {with(density) {150.dp.toPx()} },
+    )
+
+
+
+    LaunchedEffect(navigationBarHeight, bottomWindowInset, bottomSheetState.currentValue) {
+        isDismissable = bottomSheetState.currentValue != SheetValue.Expanded
+        bottomSheetState.refreshValues()
+        if (bottomSheetState.currentValue == SheetValue.Hidden) viewModel.stop()
+    }
 
     val scaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = rememberStandardBottomSheetState(
-            initialValue = SheetValue.PartiallyExpanded
-        )
+        sheetState = bottomSheetState
     )
-    val density = LocalDensity.current
-    val progress = bottomSheetExpandedRatio(scaffoldState, navBarHeightDp)
+    val progress = bottomSheetExpandedRatio(scaffoldState, navigationBarHeight + bottomWindowInset)
     val sheetCornerRadius = getCurrentSheetCornerRadius(progress)
+    val context = LocalContext.current
+
+    val tracks by viewModel.tracks.collectAsState()
+    LaunchedEffect(Unit) {
+        viewModel.scanTracks(context)
+    }
+
+    // If the currently playing track is dismissed from somewhere else.
+    LaunchedEffect(viewModel.track) {
+        if (viewModel.track == null) scaffoldState.sheetState.animateTo(SheetValue.Hidden)
+        else {
+            if (scaffoldState.sheetState.currentValue == SheetValue.Hidden) {
+                scaffoldState.sheetState.animateTo(SheetValue.PartiallyExpanded)
+            }
+        }
+    }
+
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
         BottomSheetScaffold(
             scaffoldState = scaffoldState,
-                sheetPeekHeight = navBarHeightDp + MiniPlayerDimensions.height,
+            //sheetPeekHeight = navBarHeightDp + MiniPlayerDimensions.height,
             topBar = {
                 TopAppBar(
                     title = { Text("Sael") }
                 )
             },
             sheetContent = {
-                PlayerSheet(progress)
+                PlayerSheet(
+                    progress,
+                    Modifier,
+                    viewModel.track,
+                    viewModel::isPlaying,
+                    viewModel::pause,
+                    viewModel::resume,
+                    viewModel::stop,
+                    viewModel::currentPositionMs
+                )
             },
             sheetShape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius),
             sheetDragHandle = {
@@ -177,18 +218,14 @@ fun Main() {
             },
             sheetMaxWidth = Float.POSITIVE_INFINITY.dp
         ) { paddingValues ->
-            Content(paddingValues)
+            TrackList(paddingValues, tracks, { track -> viewModel.playTrack(track) }, {/*TODO*/})
         }
 
         NavigationBar(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .onGloballyPositioned { coordinates -> // Access the coordinates of starting pos of the bar to get the height
-                    navBarHeightDp = with(density) { coordinates.size.height.toDp() }
-                    Log.d("navBarHeightDp", navBarHeightDp.toString())
-                }
                 .graphicsLayer {
-                    translationY = lerp(size.height, 0f, progress)
+                    translationY = lerp(size.height, 0f, progress())
                 }
         ) {
             NavigationBarItem(
@@ -207,36 +244,94 @@ fun Main() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Content(paddingValues: PaddingValues) {
+fun TrackList(paddingValues: PaddingValues, trackList: List<Track>, onItemClick: (Track) -> Unit, onFavoriteClick: (Track) -> Unit) {
+
     Surface {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            verticalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Main",
-                fontSize = 100.sp
-            )
+            items(trackList) { track: Track ->
+                TrackListItem(track, { onItemClick(track) }, {/*TODO*/})
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerSheet(openFraction: Float, modifier: Modifier = Modifier) {
+fun TrackListItem(track: Track, onClick: () -> Unit, onFavoriteClick: () -> Unit) {
+    Column(Modifier
+        .fillMaxWidth()
+        .clickable(onClick = onClick)) {
+        Row(
+            Modifier.fillMaxWidth(),
+            Arrangement.SpaceBetween,
+            Alignment.CenterVertically
+        ) {
+
+            AsyncImage(
+                track.artworkUri,
+                "Cover",
+                Modifier.size(MiniPlayerDimensions.height)
+            )
+
+            TitleArtist(Modifier
+                .weight(1f)
+                .padding(start = 12.dp), track)
+            IconButton(
+                onFavoriteClick
+            ) {
+                Icon(Icons.Outlined.FavoriteBorder, null)
+            }
+
+        }
+        // FlatEdgeLinearProgressIndicator({0.5f}, Modifier.fillMaxWidth())
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlayerSheet(
+    openFraction: () -> Float,
+    modifier: Modifier = Modifier,
+    track: Track?,
+    isPlaying: () -> Boolean,
+    pause: () -> Unit,
+    play: () -> Unit,
+    stop: () -> Unit,
+    currentPosition: () -> Long // In Milliseconds
+) {
+
+    //val viewModel: MainViewModel = viewModel()
+    var displayedTrack by remember {
+        mutableStateOf(track)
+    }
+    if (track != null) displayedTrack = track
+
     val compositeLandscape = LocalIsLandscape.current
     val isPortrait = !compositeLandscape
 
-    Box {
+    Box(Modifier.fillMaxSize()) {
 
-        Player(openFraction, modifier)
         val width = 32.dp
         val height = 4.dp
 
-        MiniPlayer(openFraction, isPortrait)
+        displayedTrack?.let {
+            MiniPlayer(
+                openFraction,
+                isPortrait,
+                it, // track if not null
+                isPlaying,
+                pause,
+                play,
+                currentPosition
+            )
+            Player(openFraction, Modifier, it)
+        }
 
 
         // Drag handle
@@ -244,7 +339,7 @@ fun PlayerSheet(openFraction: Float, modifier: Modifier = Modifier) {
         Box(
             Modifier
                 .matchParentSize()
-                .padding(top = lerp(topPaddingDp, 0.dp, openFraction)),
+                .padding(top = lerp(topPaddingDp, 0.dp, openFraction())),
             Alignment.TopCenter
         ) {
             Surface(
@@ -262,7 +357,7 @@ fun PlayerSheet(openFraction: Float, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Player(openFraction: Float, modifier: Modifier = Modifier) {
+fun Player(openFraction: () -> Float, modifier: Modifier = Modifier, track: Track) {
     val compositeLandscape = LocalIsLandscape.current
     val isPortrait = !compositeLandscape
 
@@ -274,45 +369,48 @@ fun Player(openFraction: Float, modifier: Modifier = Modifier) {
             Column(
                 Modifier
                     .fillMaxSize()
-                    .padding(outerPadding).safeDrawingPadding()
-                    .alpha((1 - openFraction).pow(2))
+                    .padding(outerPadding)
+                    .safeDrawingPadding()
+                    .alpha((1 - openFraction()).pow(2))
             ) {
                 PlayerImage(
-                    openFraction,
                     Modifier
                         .weight(0.5f)
                         .fillMaxWidth()
-                        .padding(bottom = innerPadding)
+                        .padding(bottom = innerPadding),
+                    track
                 )
                 PlayerControls(
                     openFraction,
                     Modifier
                         .weight(0.5f)
                         .fillMaxWidth()
-                        .padding(top = innerPadding)
+                        .padding(top = innerPadding),
+                    track
                 )
             }
         } else {
             Row(
                 Modifier
                     .fillMaxSize()
-                    .padding(outerPadding).safeDrawingPadding()
-                    .alpha((1 - openFraction).pow(2))
+                    .padding(outerPadding)
+                    .safeDrawingPadding()
+                    .alpha((1 - openFraction()).pow(2))
             ) {
                 PlayerImage(
-                    openFraction,
                     Modifier
                         .weight(1 / 3f)
                         .fillMaxHeight()
-                        .padding(end = innerPadding)
-
+                        .padding(end = innerPadding),
+                    track
                 )
                 PlayerControls(
                     openFraction,
                     Modifier
                         .weight(2 / 3f)
                         .fillMaxHeight()
-                        .padding(start = innerPadding)
+                        .padding(start = innerPadding),
+                    track
                 )
             }
         }
@@ -322,57 +420,85 @@ fun Player(openFraction: Float, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MiniPlayer(openFraction: Float, isPortrait: Boolean) {
+fun MiniPlayer(
+    openFraction: () -> Float,
+    isPortrait: Boolean,
+    track: Track,
+    isPlaying: () -> Boolean,
+    pause: () -> Unit,
+    play: () -> Unit,
+    currentPosition: () -> Long // In Milliseconds
+) {
+
+
     val context = LocalContext.current
-    Column(Modifier.fillMaxWidth().alpha(openFraction.pow(50))) {
+    Column(Modifier
+        .fillMaxWidth()
+        .alpha(openFraction().pow(50))) {
         Row(
             Modifier.fillMaxWidth(),
             Arrangement.SpaceBetween,
             Alignment.CenterVertically
         ) {
-            CoverImage(R.drawable.test, Modifier.size(MiniPlayerDimensions.height - ProgressIndicatorDefaults.LinearTrackStopIndicatorSize))
-            TitleArtist(Modifier.weight(1f).padding(start = 12.dp))
+            AsyncImage(track.artworkUri, null, Modifier.size(MiniPlayerDimensions.height - ProgressIndicatorDefaults.LinearTrackStopIndicatorSize))
+            TitleArtist(Modifier
+                .weight(1f)
+                .padding(start = 12.dp), track)
             IconButton(
                 { Toast.makeText(context, "click", Toast.LENGTH_SHORT).show() },
-                enabled = openFraction > 0.1f
+                enabled = openFraction() > 0.1f
             ) {
                 Icon(Icons.Outlined.FavoriteBorder, null)
             }
             if (isPortrait) {
-                IconButton({}, Modifier.padding(6.dp).size(32.dp), enabled = openFraction > 0.1f) {
-                    Icon(Icons.Outlined.PlayArrow, null, Modifier.fillMaxSize())
+                IconButton({ if (isPlaying()) pause() else play() }) {
+                    if (isPlaying())
+                        Icon(Icons.Outlined.Pause, null)
+                    else
+                        Icon(Icons.Outlined.PlayArrow, null)
                 }
             } else {
                 Row(
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton({}, enabled = openFraction > 0.1f) {
+                    IconButton({}, enabled = openFraction() > 0.1f) {
                         Icon(Icons.Outlined.SkipPrevious, null)
                     }
-                    IconButton({}, enabled = openFraction > 0.1f) {
-                        Icon(Icons.Outlined.PlayArrow, null)
+                    IconButton({ if (isPlaying()) pause() else play() }) {
+                        if (isPlaying())
+                            Icon(Icons.Outlined.Pause, null)
+                        else
+                            Icon(Icons.Outlined.PlayArrow, null)
                     }
-                    IconButton({}, enabled = openFraction > 0.1f) {
+                    IconButton({}, enabled = openFraction() > 0.1f) {
                         Icon(Icons.Outlined.SkipPrevious, null)
                     }
                 }
             }
         }
-        FlatEdgeLinearProgressIndicator({0.5f}, Modifier.fillMaxWidth()) // TODO: Custom implementation with square edges.
+
+
+        val displayProgress = if (track.duration > 0) (currentPosition().toFloat() / track.duration).coerceIn(0f, 1f) else 0f
+
+
+
+
+        FlatEdgeLinearProgressIndicator({displayProgress}, Modifier.fillMaxWidth())
     }
 }
 
 @Composable
-fun PlayerImage(openFraction: Float, modifier: Modifier = Modifier) {
+fun PlayerImage(modifier: Modifier = Modifier, track: Track) {
     Box(modifier, Alignment.Center) {
         Box(
             Modifier
                 .aspectRatio(1f)
                 .fillMaxSize()
         ) {
-            CoverImage(
-                R.drawable.test,
+            AsyncImage(
+                track.artworkUri,
+                "Cover",
                 Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(MiniPlayerDimensions.cornerRadius))
@@ -382,44 +508,24 @@ fun PlayerImage(openFraction: Float, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun CoverImage(@DrawableRes id: Int, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val drawable = ContextCompat.getDrawable(context, id)
+fun PlayerControls(openFraction: () -> Float, modifier: Modifier = Modifier, track: Track) {
 
-    when(drawable) {
-        is VectorDrawable,
-        is VectorDrawableCompat -> {
-            Image(
-                imageVector = ImageVector.vectorResource(id),
-                contentDescription = "icon",
-                contentScale = ContentScale.FillBounds,
-                modifier = modifier
-            )
-        }
-        is BitmapDrawable -> {
-            Image(
-                ImageBitmap.imageResource(id),
-                contentDescription = "icon",
-                contentScale = ContentScale.FillBounds,
-                filterQuality = FilterQuality.High,
-                modifier = modifier
-            )
-        }
-    }
+    val viewModel: MainViewModel = viewModel()
 
-}
 
-@Composable
-fun PlayerControls(openFraction: Float, modifier: Modifier = Modifier) {
     Column(
         modifier,
         Arrangement.Bottom,
         Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.padding( top = 48.dp))
-        Column(Modifier.fillMaxWidth().weight(1f), Arrangement.Center, Alignment.CenterHorizontally) {
+        Column(
+            Modifier.fillMaxWidth().weight(1f),
+            Arrangement.Center,
+            Alignment.CenterHorizontally
+        ) {
             Row(Modifier.fillMaxWidth()) {
-                TitleArtist(Modifier.weight(1f))
+                TitleArtist(Modifier.weight(1f), track)
                 Row(Modifier, Arrangement.End) {
                     IconButton(
                         onClick = {/*TODO()*/ }
@@ -442,39 +548,77 @@ fun PlayerControls(openFraction: Float, modifier: Modifier = Modifier) {
 
             @OptIn(ExperimentalMaterial3Api::class)
             Column(Modifier.fillMaxWidth()) {
-                val sliderState = SliderState(0.5f, 0)
+
+
+                var dragProgress by remember { mutableFloatStateOf(Float.NaN) }
+                val currentPosition = viewModel.currentPositionMs
+
+                val displayProgress = if (!dragProgress.isNaN()) {
+                    dragProgress
+                } else {
+                    if (track.duration > 0) (currentPosition.toFloat() / track.duration).coerceIn(0f, 1f) else 0f
+                }
+
+                // Determine what text to show based on the drag state
+                val displayTimeMs = if (!dragProgress.isNaN()) {
+                    (dragProgress * track.duration).toLong()
+                } else {
+                    currentPosition
+                }
+
+
                 Slider(
-                    state = sliderState,
-                    track = {
+                    value = displayProgress,
+                    onValueChange = { newValue ->
+                        dragProgress = newValue
+                    },
+                    onValueChangeFinished = {
+                        val seekTarget = (dragProgress * track.duration).toLong()
+                        viewModel.seekTo(seekTarget)
+                        dragProgress = Float.NaN
+                    },
+                    track = { sliderState ->
                         SliderDefaults.Track(
-                            sliderState = sliderState,
+                            sliderState,
                             drawStopIndicator = null
                         )
                     }
                 )
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                    Text("0:00")
-                    Text("12:00")
+                    Text(formatDuration(displayTimeMs))
+                    Text(formatDuration(track.duration))
                 }
             }
             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,) {
                 IconButton(
                     onClick = {/*TODO()*/},
-                    modifier = Modifier.padding(6.dp).size(48.dp),
-                    enabled = openFraction < 0.8f
+                    modifier = Modifier
+                        .padding(6.dp)
+                        .size(48.dp),
+                    enabled = openFraction() < 0.8f
                 ) {
                     Icon(Icons.Rounded.SkipPrevious, null, Modifier.fillMaxSize())
                 }
                 IconButton(
-                    onClick = {/*TODO()*/ },
-                    modifier = Modifier.padding(6.dp).size(72.dp)
+                    onClick = {
+                        if (viewModel.isPlaying) viewModel.pause()
+                        else viewModel.resume()
+                              },
+                    modifier = Modifier
+                        .padding(6.dp)
+                        .size(72.dp)
                 ) {
-                    Icon(Icons.Outlined.PlayArrow, null, Modifier.fillMaxSize())
+                    if (viewModel.isPlaying)
+                        Icon(Icons.Outlined.Pause, null, Modifier.fillMaxSize())
+                    else
+                        Icon(Icons.Outlined.PlayArrow, null, Modifier.fillMaxSize())
                 }
                 IconButton(
                     onClick = {/*TODO()*/ },
-                    modifier = Modifier.padding(6.dp).size(48.dp),
-                    enabled = openFraction < 0.8f
+                    modifier = Modifier
+                        .padding(6.dp)
+                        .size(48.dp),
+                    enabled = openFraction() < 0.8f
                 ) {
                     Icon(Icons.Rounded.SkipNext, null, Modifier.fillMaxSize())
                 }
@@ -499,21 +643,21 @@ fun PlayerControls(openFraction: Float, modifier: Modifier = Modifier) {
 
 
 @Composable
-fun TitleArtist(modifier: Modifier = Modifier) {
+fun TitleArtist(modifier: Modifier = Modifier, track: Track) {
     Column(
         verticalArrangement = Arrangement.Center,
         modifier = modifier
     ) {
         var typography = MaterialTheme.typography.bodyLarge
         Text(
-            text = "Title",
+            text = track.title ?: "",
             style = typography,
             fontWeight = FontWeight.Bold,
 
             )
         typography = MaterialTheme.typography.bodySmall
         Text(
-            text = "Artist",
+            text = track.artist ?: "",
             style = typography,
             fontWeight = typography.fontWeight,
             color = LocalContentColor.current.copy(0.7f)
@@ -532,17 +676,34 @@ fun MainPreview() {
     }
 }
 
-
-//@Preview(showBackground = true, showSystemUi = true, uiMode = UI_MODE_NIGHT_YES)
-//@Composable
-//fun PlayerSheetPreview() {
-//    SaelTheme {
-//        Surface() {
-//            PlayerSheet(0.0f)
-//        }
-//    }
-//}
-
+@Preview(showBackground = true, showSystemUi = true, uiMode = UI_MODE_NIGHT_YES)
+@Composable
+fun MiniPlayerPreview() {
+    SaelTheme() {
+        MiniPlayer(
+            { 1f },
+            true, Track(
+            id = 10,
+            title = "Title",
+            artist = "Artist",
+            album = "Album",
+            duration = 10L,
+            trackNumber = 1,
+            year = 10,
+            path = "",
+            mimeType = "",
+            bitrate = 10,
+            contentUri = "".toUri(),
+            artworkUri = "".toUri(),
+            lrcPath = null
+            ),
+            {true},
+            {},
+            {},
+            {5L}
+        )
+    }
+}
 
 
 @Preview(showBackground = true, uiMode = UI_MODE_NIGHT_YES)
@@ -550,7 +711,22 @@ fun MainPreview() {
 fun PlayerPreview() {
     SaelTheme {
         Surface() {
-            Player(0.0f)
+            Player(
+                { 0.0f }, Modifier, Track(
+                id = 10,
+                title = "Title",
+                artist = "Artist",
+                album = "Album",
+                duration = 10,
+                trackNumber = 1,
+                year = 10,
+                path = "",
+                mimeType = "",
+                bitrate = 10,
+                contentUri = "".toUri(),
+                artworkUri = "".toUri(),
+                lrcPath = null
+            ))
         }
     }
 }
